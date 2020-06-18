@@ -3,7 +3,7 @@
 {% load static %}
 
 {% block optionbar %}
-    <a class="nav-item nav-link" href="{% url 'month_view' %}">Cancel</a>
+    <a class="nav-item nav-link" href="{{request.META.HTTP_REFERER}}">Cancel</a>
     <a class="nav-item nav-link" href="{% url 'logout_user' %}">Logout</a>
 {% endblock %}
 
