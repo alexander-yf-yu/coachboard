@@ -1,0 +1,8 @@
+{% extends 'cal/index.html' %}
+
+{% block pagetitle %} Not Authenticated{% endblock %}
+
+{% block content %}
+    <p>You're not logged in</p>
+    <p>Please <a href="{% url 'login_main' %}">login</a>.</p>
+{% endblock %}

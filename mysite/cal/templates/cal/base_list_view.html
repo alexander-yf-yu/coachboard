@@ -1,0 +1,23 @@
+{% extends 'cal/index.html' %}
+
+{% block pagetitle %} Calendar {% endblock %}
+
+{% block optionbar %} 
+
+    <a class="nav-item nav-link" href="{% url 'month_view' %}">Back</a>
+    <a class="nav-item nav-link" href="{% url 'logout_user' %}">Logout</a>
+    
+    {% for k, v in actions.items %}
+        <a href="{{ v }}" class="nav-item nav-link">{{ k }}</a>
+    {% endfor %}
+    
+{% endblock %}
+
+{% block content %}
+    {% for k, v in info.items %}
+        <p>{{ k }}{{ v }}</p>
+    {% endfor %}
+{% endblock %}
+
+    
+

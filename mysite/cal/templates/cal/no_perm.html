@@ -1,0 +1,8 @@
+{% extends 'cal/no_auth.html' %}
+
+{% block pagetitle %} Not permitted {% endblock %}
+{% block title %} You don't have access {% endblock %}
+
+{% block content %}
+    <p>Back to <a href="{% url 'month_view' %}">Calendar</a>.</p>
+{% endblock %}

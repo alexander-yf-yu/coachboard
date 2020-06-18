@@ -1,0 +1,15 @@
+{% extends 'login/index.html' %}
+
+{% block title %} Register {% endblock %}
+
+{% block instructions %} 
+    <p>Create a new user as admin, or go <a href="{% url 'month_view' %}">back</a>.</p>
+{% endblock %}
+
+{% block content %}
+    <form action="#" method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <input type="submit" value="Submit">
+    </form>
+{% endblock %}

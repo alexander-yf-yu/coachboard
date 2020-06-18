@@ -1,0 +1,12 @@
+{% extends 'cal/base_delete_view.html' %}
+
+{% block title %} Confirm Sub {% endblock %}
+
+{% block content %}
+    <form method="post">
+        {% csrf_token %}
+        <p>Are you sure you want to sub?</p>
+        <p>An admin should approve your action shortly.</p>
+        <input type="submit" value="Confirm">
+    </form>
+{% endblock %}

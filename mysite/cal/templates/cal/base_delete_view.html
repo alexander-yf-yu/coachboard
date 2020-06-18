@@ -1,0 +1,23 @@
+{% extends 'cal/index.html' %}
+
+{% block pagetitle %} Confirm {% endblock %}
+
+{% block optionbar %} 
+
+<a class="nav-item nav-link" href="{% url 'month_view' %}">Cancel</a>
+<a class="nav-item nav-link" href="{% url 'logout_user' %}">Logout</a>
+    
+{% endblock %}
+
+
+{% block content %}
+    <div class="container">
+        <h1>Confirm Delete</h1>
+        <form method="post">
+            {% csrf_token %}
+            <p>Are you sure you want to delete "{{ object.name }}"?</p>
+            <input type="submit" value="Confirm">
+        </form>
+    </div>
+{% endblock %}
+

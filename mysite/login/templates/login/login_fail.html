@@ -1,0 +1,12 @@
+{% extends 'login/index.html' %}
+
+{% block title %} Login Failed {% endblock %}
+
+{% block instructions %} 
+    <p>Login failed, click here to <a href="{% url 'login_main' %}">try again</a>.</p>
+{% endblock %}
+
+{% block content %}
+    <!-- <p>Reset your password here: <a href="">todo</a>.</p> 
+    <p>Contact admin for further help here: <a href="">todo</a>.</p>  -->
+{% endblock %}

@@ -1,0 +1,71 @@
+{% extends 'cal/index.html' %}
+
+{% load static %}
+
+{% block head %}
+    <style>
+        .calendar {
+            width: 100%;
+            font-size: 1em;
+        }
+        
+        .calendar tr, .calendar td {
+            border: 1px solid black;
+        }
+
+        .calendar th {
+            padding: 0.5em;
+            text-align: center;
+            font-size: 1em;
+        }
+
+        .calendar td {
+            max-width: 3em;
+            height: 5em;
+            padding: 2em 0px 0px 0.5em;
+            overflow: hidden;
+        }
+
+        .month {
+            font-size: 2em;
+        }
+
+        .date {
+            font-size: 2em;
+        }
+
+        ul {
+            height: 100%;
+            padding: 0px 0px 0px 0px;
+        }
+    </style>
+{% endblock %}
+
+
+{% block optionbar %}
+    <a class="nav-item nav-link" href="{% url 'month_view' %}{{ prev_month }}">Previous Month</a>
+    <a class="nav-item nav-link" href="{% url 'month_view' %}{{ next_month }}">Next Month</a>
+    <a class="nav-item nav-link" href="{% url 'create_subrequest' %}">Create Subrequest</a>
+    
+    {% if is_staff %}
+        <a class="nav-item nav-link" href="{% url 'create_shift' %}">Create Shift</a>
+        <a class="nav-item nav-link" href="{% url 'create_shiftgroup' %}">Create Shifts</a>
+        <a class="nav-item nav-link" href="{% url 'register' %}">Add User</a>
+    {% endif %}
+
+    <a class="nav-item nav-link" href="{% url 'calculate_hours' %}">Calculate Hours</a>
+    <a class="nav-item nav-link" href="{% url 'change_password' %}">Change Password</a>
+    <a class="nav-item nav-link" href="{% url 'logout_user' %}">Logout</a>
+
+{% endblock %}
+
+{% block content %}
+
+    <h1>Welcome, {{ username }}</h1>
+
+    <hr>
+
+    {{ staff_view }}
+    {{ notifications }}
+    {{ calendar }}
+{% endblock %}
