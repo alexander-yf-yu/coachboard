@@ -2,7 +2,7 @@
 
 ## Workforce and payroll management Webapp for Sports Teams/Clubs
 
-This webapp helps sports clubs manage their staff and reduce communications. 
+This django-based webapp helps sports clubs manage their staff and reduce communications. 
 
 > In a typical sports club, there are coaches, atheletes, and managing staff. Managing the day to day operations of the club poses a challenge. 
 
