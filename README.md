@@ -12,7 +12,7 @@ In the app, coaches and managing staff create an account they use to identify th
 
 A typical use case for a coach would be to log in and view their shifts, preview the upcoming work schedule, and respond to any other coaches that need a substitute.
 
-A managing staff member can view the shifts of all coaches and 
+A managing staff member can view the shifts of all coaches and calculate employees' hours for payroll. 
 ___
 
 ## Demo Video
