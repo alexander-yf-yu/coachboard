@@ -6,7 +6,7 @@ This django-based webapp helps sports clubs manage their staff and reduce commun
 
 > In a typical sports club, there are coaches, atheletes, and managing staff. Managing the day to day operations of the club poses a challenge. 
 
-This app offers a centralized location for coaches and administrative staff to manage coaching schedules. The app also allows managing staff to keep track of employee hours and calculate their hours over specific time period.
+This app offers a centralized location for coaches and administrative staff to manage coaching schedules. The app also allows managing staff to keep track of employee hours and calculate their pay over specific time period.
 
 In the app, coaches and managing staff create an account they use to identify themselves as either a coach or managing staff member.
 
