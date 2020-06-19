@@ -17,7 +17,7 @@ ___
 
 ## Demo Video
 
-[![DEMO](https://i9.ytimg.com/vi/S_uITy0Y_aQ/mq1.jpg)](https://www.youtube.com/watch?v=S_uITy0Y_aQ "Demo")
+[![DEMO](http://img.youtube.com/vi/S_uITy0Y_aQ/0.jpg)](https://www.youtube.com/watch?v=S_uITy0Y_aQ "Demo")
 
 ___
 ## Installation and Setup
