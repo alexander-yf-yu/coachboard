@@ -1,8 +1,23 @@
 # clubs-hrm
-Workforce and payroll management software for Sports Teams / Clubs
+
+## Workforce and payroll management Webapp for Sports Teams/Clubs
+
+This webapp helps sports clubs manage their staff and reduce communications. 
+
+> In a typical sports club, there are coaches, atheletes, and managing staff. Managing the day to day operations of the club poses a challenge. 
+
+This app offers a centralized location for coaches and administrative staff to manage coaching schedules. The app also allows managing staff to keep track of employee hours and calculate their hours over specific time period.
+
+In the app, coaches and managing staff create an account they use to identify themselves as either a coach or managing staff member.
+
+A typical use case for a coach would be to log in and view their shifts, preview the upcoming work schedule, and respond to any other coaches that need a substitute.
+
+A managing staff member can view the shifts of all coaches and 
 ___
 
+## Demo Video
 
+[![DEMO](https://i9.ytimg.com/vi/S_uITy0Y_aQ/mq1.jpg?sqp=CLTbsPcF&rs=AOn4CLD6eFgmzMvAU2svp90NXspGMTbcUg)](https://www.youtube.com/watch?v=S_uITy0Y_aQ "Demo")
 
 ___
 ## Installation and Setup
