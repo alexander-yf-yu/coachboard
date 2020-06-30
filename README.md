@@ -1,4 +1,4 @@
-# clubone
+# ClubOne
 
 ## Workforce and payroll management Webapp for Sports Teams/Clubs
 
@@ -67,6 +67,9 @@ DATABASES = {
 ...
 ```
 
+The password reset and create subrequest emailing functionalities also require the email settings to be defined in settings.py at the very bottom of the file. 
+
+
 ### Running server on localhost:
 
 Navigate to the directory containing manage.py:
@@ -82,10 +85,6 @@ Now start the server with:
     python3 manage.py runserver
 
 The server should be running on [http://127.0.0.1:8000/](http://127.0.0.1:8000/), and visiting that url in a browser should display the site.
-
-___
-
-
 
 
 
