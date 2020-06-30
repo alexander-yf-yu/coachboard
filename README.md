@@ -1,4 +1,4 @@
-# clubs-hrm
+# clubone
 
 ## Workforce and payroll management Webapp for Sports Teams/Clubs
 
@@ -32,7 +32,7 @@ Prerequisites:
 
 Clone repository:
 
-    git clone https://github.com/alexander-yf-yu/clubs-hrm.git
+    git clone https://github.com/alexander-yf-yu/clubone.git
 
 If you want to use a virtualenv, create one now. Here is a link to the python virtual environments [documentation](http://dev.nodeca.com).
 
@@ -45,7 +45,7 @@ This section assumes the use of postgresql, for more information on using other 
 
 Create a new database and database-user in postgresql. You can do this through the psql CLI. Check out the [psql docs](https://www.postgresql.org/docs/12/app-psql.html) for more info. [This](https://www.youtube.com/watch?v=qw--VYLpxG4) video is a good resource for a beginner to postgresql and for troubleshooting issues.
 
-In the settings.py file at path/to/clubs-hrm/mysite/mysite/settings.py, edit the file to connect django to the database installation. Fill in the 'DATABASES' dictionary with your database name and user credentials. Change the port number if you're not using the default 5432.
+In the settings.py file at path/to/clubone/mysite/mysite/settings.py, edit the file to connect django to the database installation. Fill in the 'DATABASES' dictionary with your database name and user credentials. Change the port number if you're not using the default 5432.
 
 
 ```python
@@ -71,7 +71,7 @@ DATABASES = {
 
 Navigate to the directory containing manage.py:
 
-    cd clubs-hrm/mysite/
+    cd clubone/mysite/
 
 Migrate the django default models and our custom models into the database.
 
