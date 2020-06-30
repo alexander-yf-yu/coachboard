@@ -2,8 +2,7 @@ from django.contrib import admin
 
 # Register your models here.
 
-from .models import Shifts, ShiftGroups, ShiftGrouper, SubRequests
+from .models import Shift, SubRequest
 
-admin.site.register(Shifts)
-admin.site.register(ShiftGroups)
-admin.site.register(SubRequests)
+admin.site.register(Shift)
+admin.site.register(SubRequest)
