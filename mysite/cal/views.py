@@ -321,7 +321,7 @@ def create_subrequest(request, client_name=None, location_name=None):
                 f'New Subrequest',
                 f'New subrequest at {location.name} on {date}',
                 EMAIL_HOST_USER,
-                ['xixomet280@mailrnl.com'],
+                [],
                 fail_silently=True,
             )
 
