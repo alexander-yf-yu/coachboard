@@ -22,14 +22,16 @@ class CreateSubrequestForm(forms.Form):
             if start_time > end_time:
                 raise forms.ValidationError("Start time must be before end time")
 
-class CreateShiftGroupForm(forms.Form):
-    user = ModelChoiceField(queryset=User.objects.all(), to_field_name='username', label='User')
+class CreateShiftsForm(forms.Form):
+    # user = ModelChoiceField(queryset=User.objects.all(), to_field_name='username', label='User')
     name = forms.CharField(max_length=30, label_suffix=': (all shifts have the same name)')
     start_date = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}))
     end_date = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}))
 
     start_time = forms.TimeField(widget=forms.TimeInput(attrs={'type': 'time'}))
     end_time = forms.TimeField(widget=forms.TimeInput(attrs={'type': 'time'}))
+
+    
 
     repeat_interval = forms.ChoiceField(
         choices=[(1,1), (2,2), (3,3), (4,4)],
@@ -50,6 +52,16 @@ class CreateShiftGroupForm(forms.Form):
         ],
         widget=forms.CheckboxSelectMultiple(),
     )
+
+    def __init__(self, *args, **kwargs):
+        client = kwargs.pop('client')
+        location = kwargs.pop('location')
+        super(CreateShiftsForm, self).__init__(*args, **kwargs)
+        
+        client_users = client.users.all()
+        location_users = location.users.all()
+
+        self.fields['user'] = ModelChoiceField(queryset=client_users.intersection(location_users), to_field_name='username', label='User')
 
     def clean(self):
         cleaned_data = super().clean()
@@ -74,11 +86,21 @@ class CreateShiftGroupForm(forms.Form):
 
          
 class CreateShiftForm(forms.Form):
-    user = ModelChoiceField(queryset=User.objects.all(), to_field_name='username', label='User')
+    # user = ModelChoiceField(queryset=User.objects.all(), to_field_name='username', label='User')
     name = forms.CharField(max_length=30)
     date = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}))
     start_time = forms.TimeField(widget=forms.TimeInput(attrs={'type': 'time'}))
     end_time = forms.TimeField(widget=forms.TimeInput(attrs={'type': 'time'}))
+
+    def __init__(self, *args, **kwargs):
+        client = kwargs.pop('client')
+        location = kwargs.pop('location')
+        super(CreateShiftForm, self).__init__(*args, **kwargs)
+        
+        client_users = client.users.all()
+        location_users = location.users.all()
+
+        self.fields['user'] = ModelChoiceField(queryset=client_users.intersection(location_users), to_field_name='username', label='User')
 
     def clean(self):
         cleaned_data = super().clean()
@@ -94,7 +116,7 @@ class CreateShiftForm(forms.Form):
 
 
 class CalculateHoursForm(forms.Form):
-    user = ModelChoiceField(queryset=User.objects.all(), to_field_name='username', label='User:')
+    # user = ModelChoiceField(queryset=User.objects.all(), to_field_name='username', label='User:')
     start_date = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}), label='Start Date (Inclusive):')
     end_date = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}), label='End Date (Inclusive):')
 
