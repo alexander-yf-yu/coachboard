@@ -1,0 +1,8 @@
+{% extends 'cal/base_message.html' %}
+
+{% block pagetitle %} User Error {% endblock %}
+
+{% block content %}
+    <p>This user is not registered either with {{ client_name }} or not registered at {{ location_name }}.</p>
+    <p>Please go <a href="/">home</a>.</p>
+{% endblock %}

@@ -5,13 +5,15 @@
 {% block optionbar %}
 
 <a class="nav-item nav-link" href="{{request.META.HTTP_REFERER}}">Cancel</a>
-<a class="nav-item nav-link" href="{% url 'logout_user' %}">Logout</a>
+<a class="nav-item nav-link" href="{% url 'logout_user' client_name=client_name location_name=location_name %}">Logout</a>
 
 {% endblock %}
 
 {% block content %}
 
-<h1>Create new Shift</h1>
+<h1>Calculate employee hours</h1>
+
+<br>
 
 <form action="#" method="post">
     {% csrf_token %}

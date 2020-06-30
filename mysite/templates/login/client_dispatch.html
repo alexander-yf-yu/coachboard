@@ -1,0 +1,25 @@
+{% extends 'login/index.html' %}
+
+{% block title %} 
+    {{ client_name }}
+{% endblock %}
+
+{% block instructions %} 
+{% endblock %}
+
+{% block content %}
+
+    <h1>Welcome {{ client_name }} coaches and staff</h1>
+
+    <div class="lead">
+        <p>Please choose a location:</p>
+    </div>
+    
+    <div class="list-group">
+
+        {% for name in locations %}
+            <a href="{{ name }}" class="list-group-item list-group-item-action">{{ name }}</a>
+        {% endfor %}
+
+    </div>
+{% endblock %}

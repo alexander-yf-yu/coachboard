@@ -3,7 +3,7 @@
 {% block title %} Register {% endblock %}
 
 {% block instructions %} 
-    <p>Create a new user as admin, or go <a href="{% url 'month_view' %}">back</a>.</p>
+    <p>Create a new user as admin, or go <a href="{{request.META.HTTP_REFERER}}">back</a>.</p>
 {% endblock %}
 
 {% block content %}

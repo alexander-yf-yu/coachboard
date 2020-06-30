@@ -1,0 +1,8 @@
+{% extends 'cal/base_message.html' %}
+
+{% block pagetitle %} Not Authenticated{% endblock %}
+
+{% block content %}
+    <p>You're not logged in</p>
+    <p>Please <a href="{% url 'login_main' client_name=client_name location_name=location_name %}">login</a>.</p>
+{% endblock %}

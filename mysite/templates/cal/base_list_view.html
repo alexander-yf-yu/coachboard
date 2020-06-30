@@ -5,7 +5,7 @@
 {% block optionbar %} 
 
     <a class="nav-item nav-link" href="{{request.META.HTTP_REFERER}}">Back</a>
-    <a class="nav-item nav-link" href="{% url 'logout_user' %}">Logout</a>
+    <a class="nav-item nav-link" href="{% url 'logout_user' client_name=client_name location_name=location_name %}">Logout</a>
     
     {% for k, v in actions.items %}
         <a href="{{ v }}" class="nav-item nav-link">{{ k }}</a>

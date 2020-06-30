@@ -3,7 +3,7 @@
 {% block title %} Login Failed {% endblock %}
 
 {% block instructions %} 
-    <p>Login failed, click here to <a href="{% url 'login_main' %}">try again</a>.</p>
+    <p>Login failed, click here to <a href="{% url 'login_main' client_name=client_name location_name=location_name %}">try again</a>.</p>
 {% endblock %}
 
 {% block content %}

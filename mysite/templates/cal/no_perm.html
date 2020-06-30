@@ -1,0 +1,8 @@
+{% extends 'cal/base_message.html' %}
+
+{% block pagetitle %} Not permitted {% endblock %}
+{% block title %} You don't have access {% endblock %}
+
+{% block content %}
+    <p>Back to <a href="{% url 'month_view' client_name=client_name location_name=location_name %}">Calendar</a>.</p>
+{% endblock %}

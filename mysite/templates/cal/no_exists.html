@@ -1,8 +1,8 @@
-{% extends 'cal/index.html' %}
+{% extends 'cal/base_message.html' %}
 
 {% block pagetitle %} Page doesn't exist {% endblock %}
 
 {% block content %}
     <p>The page you requested doesn't exist.</p>
-    <p>Please go <a href="{% url 'month_view' %}">back</a>.</p>
+    <p>Please go <a href="{{request.META.HTTP_REFERER}}">back</a>.</p>
 {% endblock %}
