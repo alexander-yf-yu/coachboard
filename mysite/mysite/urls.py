@@ -20,7 +20,10 @@ from django.shortcuts import render
 
 urlpatterns = [
     path('', views.index, name='index'),
-    path('login/', include('login.urls')),
-    path('calendar/', include('cal.urls')),
     path('admin/', admin.site.urls),
+    path('<str:client_name>/', views.client_dispatch, name='client_dispatch'),
+    path('<str:client_name>/<str:location_name>/', views.client_location_dispatch, name='client_location_dispatch'),
+    path('<str:client_name>/<str:location_name>/login/', include('login.urls')),
+    path('<str:client_name>/<str:location_name>/calendar/', include('cal.urls')),
+    
 ]
