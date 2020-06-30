@@ -1,13 +1,17 @@
 from datetime import datetime, timedelta
 from calendar import HTMLCalendar
-from .models import SubRequests, Shifts, ShiftGroups, ShiftGrouper
+from .models import SubRequest, Shift, Client, Location
 from django.contrib.auth.models import User
 import calendar
 
 class htmlCalendar(HTMLCalendar):
-    def __init__(self, user_id, year=None, month=None):
+    def __init__(self, user_id, client_name, location_name, year=None, month=None):
         super(htmlCalendar, self).__init__()
-        self.user_id = user_id
+        
+        self.user = User.objects.get(pk=user_id)
+        self.client = Client.objects.get(name__iexact=str(client_name))
+        self.location = Location.objects.get(name__iexact=str(location_name))
+
         if (year is None) and (month is None):
             t = datetime.today()
             self.year = t.year
@@ -17,12 +21,7 @@ class htmlCalendar(HTMLCalendar):
             self.month = month
 
     def is_staff(self):
-        try:
-            user = User.objects.get(pk=self.user_id)
-            return bool(user.is_staff)
-        except:
-            return False
-
+        return self.user.is_staff
 
     # formats a day as a td
     # filter SubRequests by day
@@ -31,7 +30,7 @@ class htmlCalendar(HTMLCalendar):
         if self.is_staff():
             shifts_per_day = shifts.filter(date__day=day)
         else:
-            shifts_per_day = shifts.filter(date__day=day, user_id=self.user_id)
+            shifts_per_day = shifts.filter(date__day=day, user=self.user)
         
         subrequests_per_day = req.filter(date__day=day)
 
@@ -57,8 +56,8 @@ class htmlCalendar(HTMLCalendar):
     # formats a month as a table
     # filter SubRequests by year and month
     def formatmonth(self, withyear=True):
-        req = SubRequests.objects.filter(date__year=self.year, date__month=self.month)
-        shifts = Shifts.objects.filter(date__year=self.year, date__month=self.month)
+        req = SubRequest.objects.filter(date__year=self.year, date__month=self.month, client=self.client, location=self.location)
+        shifts = Shift.objects.filter(date__year=self.year, date__month=self.month, client=self.client, location=self.location)
 
         cal = f'<table border="0" cellpadding="0" cellspacing="0" class="calendar">\n'
         cal += f'{self.formatmonthname(self.year, self.month, withyear=withyear)}\n'
@@ -71,9 +70,9 @@ class htmlCalendar(HTMLCalendar):
 
     
     def generate_staff_view(self):
-        unapproved_subrequests = SubRequests.objects.filter(date__gte=datetime.today(), approved__exact=False)
-        approved_subrequests = SubRequests.objects.filter(date__gte=datetime.today(), approved__exact=True)
-        uncovered_subrequests = SubRequests.objects.filter(date__gte=datetime.today(), covered_by__exact=None)
+        unapproved_subrequests = SubRequest.objects.filter(date__gte=datetime.today(), client=self.client, location=self.location, approved__exact=False)
+        approved_subrequests = SubRequest.objects.filter(date__gte=datetime.today(), client=self.client, location=self.location, approved__exact=True)
+        uncovered_subrequests = SubRequest.objects.filter(date__gte=datetime.today(), client=self.client, location=self.location, covered_by__exact=None)
 
         len_unapproved = len(unapproved_subrequests)
         len_unc = len(uncovered_subrequests)
@@ -104,13 +103,13 @@ class htmlCalendar(HTMLCalendar):
 
         content += '</div>'
 
-        return f'<div class="container">{content}</div><hr>' 
+        return f'<div class="container">{content}</div>' 
 
 
     def generate_notifications(self):
-        your_subrequests = SubRequests.objects.filter(date__gte=datetime.today(), user_id__exact=self.user_id)
-        your_subdays = SubRequests.objects.filter(date__gte=datetime.today(), covered_by_id__exact=self.user_id)
-        uncovered_subrequests = SubRequests.objects.filter(date__gte=datetime.today(), covered_by__exact=None)
+        your_subrequests = SubRequest.objects.filter(date__gte=datetime.today(), client=self.client, location=self.location, user=self.user)
+        your_subdays = SubRequest.objects.filter(date__gte=datetime.today(), client=self.client, location=self.location, covered_by=self.user)
+        uncovered_subrequests = SubRequest.objects.filter(date__gte=datetime.today(), client=self.client, location=self.location, covered_by__exact=None)
 
         len_req = len(your_subrequests)
         len_days = len(your_subdays)
@@ -141,7 +140,7 @@ class htmlCalendar(HTMLCalendar):
         
         content += '</div>'
 
-        return f'<div class="container">{content}</div><hr>' 
+        return f'<div class="container">{content}</div>' 
 
 
 def prev_month(year, month):
@@ -157,10 +156,7 @@ def next_month(year, month):
     return str(next_month.year) + '/' + str(next_month.month)
 
 
-def create_shiftgroup_from_pattern(user_id, name, start_date, end_date, start_time, end_time, repeat_on, repeat_interval):
-
-    new_group = ShiftGroups(name=name)
-    new_group.save()
+def create_shifts_from_pattern(client, location, user_id, name, start_date, end_date, start_time, end_time, repeat_on, repeat_interval):
 
     curr = start_date
     loop_end = end_date + timedelta(days=1)
@@ -171,7 +167,9 @@ def create_shiftgroup_from_pattern(user_id, name, start_date, end_date, start_ti
 
         if weekday in repeat_on and week_count == 0:
 
-            shift = Shifts(
+            shift = Shift(
+                client=client,
+                location=location,
                 user_id=user_id,
                 name=name,
                 date=curr,
@@ -181,13 +179,6 @@ def create_shiftgroup_from_pattern(user_id, name, start_date, end_date, start_ti
 
             shift.save()
 
-            new_join = ShiftGrouper(
-                group_id=new_group.id,
-                shift_id=shift.id,
-            )
-
-            new_join.save()
-        
         if week_count == 0 and weekday == '7':
             week_count = int(repeat_interval)
 

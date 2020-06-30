@@ -1,85 +1,167 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, HttpResponse
 from django.contrib.auth import logout
+from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 from django.contrib.auth.models import User
+from django.core.mail import send_mail
 from django.utils.safestring import mark_safe
 from django.views.generic.edit import DeleteView
-from .utils import htmlCalendar, prev_month, next_month, create_shiftgroup_from_pattern
-from .forms import CreateShiftForm, CreateSubrequestForm, CreateShiftGroupForm, CalculateHoursForm
-from .models import Shifts, SubRequests
+from .utils import htmlCalendar, prev_month, next_month, create_shifts_from_pattern
+from .forms import CreateShiftForm, CreateSubrequestForm, CreateShiftsForm, CalculateHoursForm
+from .models import Shift, SubRequest, Location, Client
 from datetime import datetime, timedelta, date, time
+from mysite.settings import EMAIL_HOST_USER
+import csv
+from datetime import timedelta
+
+# def user_client_location_auth(request, client_name, location_name):
 
 
 # Views here.
-def index(request):
-    return render(request, 'cal/index.html', {})
+def no_auth(request, client_name=None, location_name=None):
+    return render(request, 'cal/no_auth.html', {'client_name': client_name, 'location_name': location_name})
 
-def no_auth(request):
-    return render(request, 'cal/no_auth.html', {})
+def no_perm(request, client_name=None, location_name=None):
+    return render(request, 'cal/no_perm.html', {'client_name': client_name, 'location_name': location_name})
 
-def no_perm(request):
-    return render(request, 'cal/no_perm.html', {})
-
-def no_exists(request):
+def no_exists(request, client_name=None, location_name=None):
     return render(request, 'cal/no_exists.html', {})
 
-def success(request):
-    return render(request, 'cal/success.html', {})
+def success(request, client_name=None, location_name=None):
+    return render(request, 'cal/success.html', {'client_name': client_name, 'location_name': location_name})
 
 
-def month_view(request, month=None, year=None):
+def switch_location(request, client_name=None, location_name=None):
+
+    if client_name is None or location_name is None:
+        return HttpResponse(status=500)
 
     if not request.user.is_authenticated:
-        return redirect('no_auth')
+        return redirect('no_auth', client_name=client_name, location_name=location_name)
 
-    if request.method == 'GET':
-        if year is None and month is None:
-            d = datetime.today()
-            req_year = d.year
-            req_month = d.month
-        else:
-            req_year = year
-            req_month = month
-
-        user_id = request.user.id
-
-        cal = htmlCalendar(user_id, year=req_year, month=req_month)
-        html_cal = cal.formatmonth(withyear=True)
-
-        context = {}
-
-        context['calendar'] = mark_safe(html_cal)
-        context['prev_month'] = prev_month(req_year, req_month)
-        context['next_month'] = next_month(req_year, req_month)
-        context['is_staff'] = False
-        context['username'] = request.user.username
-
-        if cal.is_staff():
-            context['staff_view'] = mark_safe(cal.generate_staff_view())
-            context['is_staff'] = True
-        else:
-            context['notifications'] = mark_safe(cal.generate_notifications())
-
-        return render(request, 'cal/month_view.html', context)
+    try:
+        client = Client.objects.get(name__iexact=str(client_name))
+    except ObjectDoesNotExist:
+        return redirect('no_exists', client_name=client_name, location_name=location_name)
+    except MultipleObjectsReturned:
+        return HttpResponse(status=500)
     
-    return render(request, 'cal/month_view.html', {})
+    user = User.objects.get(id=request.user.id)
+
+    if user not in client.users.all():
+        return redirect('no_perm', client_name=client_name, location_name=location_name)
+
+    client_locations = set(client.locations.all())
+    user_locations = set(user.location_set.all())
+
+    locations = list(client_locations & user_locations)
+
+    context = {
+        'locations': locations,
+        'client_name': client_name,
+    }
+
+    return render(request, 'cal/switch_location.html', context)
+
+
+def month_view(request, month=None, year=None, client_name=None, location_name=None):
+
+    if client_name is None or location_name is None:
+        return HttpResponse(status=500)
+    
+    if not request.user.is_authenticated:
+        return redirect('no_auth', client_name=client_name, location_name=location_name)
+
+    try:
+        client = Client.objects.get(name__iexact=str(client_name))
+        location = Location.objects.get(name__iexact=str(location_name))
+    except ObjectDoesNotExist:
+        return redirect('no_exists', client_name=client_name, location_name=location_name)
+    except MultipleObjectsReturned:
+        return HttpResponse(status=500)
+
+    if not location in client.locations.all():
+        return render(request, 'mysite/no_location_exists.html', {'client_name': str(client_name)})
+
+    user = User.objects.get(id=request.user.id)
+    
+    if location not in client.locations.all():
+        return redirect('no_exists', client_name=client_name, location_name=location_name)
+    
+    if user not in client.users.all() or user not in location.users.all():
+        return redirect('no_perm', client_name=client_name, location_name=location_name)
+
+    if year is None and month is None:
+        d = datetime.today()
+        req_year = d.year
+        req_month = d.month
+    else:
+        req_year = year
+        req_month = month
+
+    user_id = request.user.id
+
+    cal = htmlCalendar(user_id, client_name, location_name, year=req_year, month=req_month)
+
+    html_cal = cal.formatmonth(withyear=True)
+
+    context = {}
+
+    context['client_name'] = str(client_name)
+    context['location_name'] = str(location_name)
+
+    context['calendar'] = mark_safe(html_cal)
+    context['prev_month'] = prev_month(req_year, req_month)
+    context['next_month'] = next_month(req_year, req_month)
+    context['is_staff'] = False
+    context['username'] = request.user.username
+
+    if cal.is_staff():
+        context['staff_view'] = mark_safe(cal.generate_staff_view())
+        context['is_staff'] = True
+    else:
+        context['notifications'] = mark_safe(cal.generate_notifications())
+
+    return render(request, 'cal/month_view.html', context)
 
  
-def logout_user(request):
+def logout_user(request, client_name=None, location_name=None):
     # Does nothing if not authenticated in first place
     logout(request)
-    return redirect('login_main')
+    return redirect('login_main', client_name=client_name, location_name=location_name)
 
 
-def create_shift(request):
+def create_shift(request, client_name=None, location_name=None):
+
+    if client_name is None or location_name is None:
+        return HttpResponse(status=500)
     
     if not request.user.is_authenticated:
-        return redirect('no_auth')
+        return redirect('no_auth', client_name=client_name, location_name=location_name)
     
     if not request.user.is_staff:
-        return redirect('no_perm')
+        return redirect('no_perm', client_name=client_name, location_name=location_name)
+
+    try:
+        client = Client.objects.get(name__iexact=str(client_name))
+        location = Location.objects.get(name__iexact=str(location_name))
+    except ObjectDoesNotExist:
+        return redirect('no_exists', client_name=client_name, location_name=location_name)
+    except MultipleObjectsReturned:
+        return HttpResponse(status=500)
+
+    if not location in client.locations.all():
+        return render(request, 'mysite/no_location_exists.html', {'client_name': str(client_name)})
+
+    user = User.objects.get(id=request.user.id)
+    
+    if location not in client.locations.all():
+        return redirect('no_exists', client_name=client_name, location_name=location_name)
+    
+    if user not in client.users.all() or user not in location.users.all():
+        return redirect('no_perm', client_name=client_name, location_name=location_name)
 
     if request.method == 'POST':
-        form = CreateShiftForm(request.POST)
+        form = CreateShiftForm(request.POST, client=client, location=location)
 
         if form.is_valid():
             field_dict = form.cleaned_data
@@ -91,8 +173,10 @@ def create_shift(request):
             end_time = field_dict.get('end_time')
 
             # Creation of new shifts tuple / instance
-            new_shift = Shifts(
-                user_id=owner.id, 
+            new_shift = Shift(
+                client=client,
+                location=location,
+                user=owner, 
                 date=date,
                 start_time=start_time,
                 end_time=end_time,
@@ -102,26 +186,46 @@ def create_shift(request):
             # saving instance to database
             new_shift.save()
 
-            return redirect('success')
-        else:
-            print("create_shift_form invalid")
-
-    else:
-        form = CreateShiftForm()
+            return redirect('success', client_name=client_name, location_name=location_name)
         
-    return render(request, 'cal/create_shift.html', {'form': form})
+    else:
+        form = CreateShiftForm(client=client, location=location)
+        
+    return render(request, 'cal/create_shift.html', {'form': form, 'client_name': client_name, 'location_name': location_name})
 
 
-def create_shiftgroup(request):
+def create_shifts(request, client_name=None, location_name=None):
+
+    if client_name is None or location_name is None:
+        return HttpResponse(status=500)
 
     if not request.user.is_authenticated:
-        return redirect('no_auth')
+        return redirect('no_auth', client_name=client_name, location_name=location_name)
 
     if not request.user.is_staff:
-        return redirect('no_perm')
+        return redirect('no_perm', client_name=client_name, location_name=location_name)
+
+    try:
+        client = Client.objects.get(name__iexact=str(client_name))
+        location = Location.objects.get(name__iexact=str(location_name))
+    except ObjectDoesNotExist:
+        return redirect('no_exists', client_name=client_name, location_name=location_name)
+    except MultipleObjectsReturned:
+        return HttpResponse(status=500)
+
+    if not location in client.locations.all():
+        return render(request, 'mysite/no_location_exists.html', {'client_name': str(client_name)})
+
+    user = User.objects.get(id=request.user.id)
+    
+    if location not in client.locations.all():
+        return redirect('no_exists', client_name=client_name, location_name=location_name)
+    
+    if user not in client.users.all() or user not in location.users.all():
+        return redirect('no_perm', client_name=client_name, location_name=location_name)
 
     if request.method == 'POST':
-        form = CreateShiftGroupForm(request.POST)
+        form = CreateShiftsForm(request.POST, client=client, location=location)
 
         if form.is_valid():
             field_dict = form.cleaned_data
@@ -135,7 +239,9 @@ def create_shiftgroup(request):
             repeat_interval = field_dict.get('repeat_interval')
             repeat_on = field_dict.get('repeat_on')
 
-            create_shiftgroup_from_pattern(
+            create_shifts_from_pattern(
+                client=client,
+                location=location,
                 user_id=owner.id,
                 name=name,
                 start_date=start_date,
@@ -146,17 +252,39 @@ def create_shiftgroup(request):
                 repeat_interval=repeat_interval,
             )
 
-            return redirect('success')
+            return redirect('success', client_name=client_name, location_name=location_name)
     else:
-        form = CreateShiftGroupForm()
+        form = CreateShiftsForm(client=client, location=location)
 
-    return render(request, 'cal/create_shiftgroup.html', {'form': form})
+    return render(request, 'cal/create_shifts.html', {'form': form, 'client_name': client_name, 'location_name': location_name})
 
 
-def create_subrequest(request):
+def create_subrequest(request, client_name=None, location_name=None):
     
+    if client_name is None or location_name is None:
+        return HttpResponse(status=500)
+
     if not request.user.is_authenticated:
-        return redirect('no_auth')
+        return redirect('no_auth', client_name=client_name, location_name=location_name)
+
+    try:
+        client = Client.objects.get(name__iexact=str(client_name))
+        location = Location.objects.get(name__iexact=str(location_name))
+    except ObjectDoesNotExist:
+        return redirect('no_exists', client_name=client_name, location_name=location_name)
+    except:
+        return HttpResponse(status=500)
+
+    if not location in client.locations.all():
+        return render(request, 'mysite/no_location_exists.html', {'client_name': str(client_name)})
+
+    user = User.objects.get(id=request.user.id)
+    
+    if location not in client.locations.all():
+        return redirect('no_exists', client_name=client_name, location_name=location_name)
+    
+    if user not in client.users.all() or user not in location.users.all():
+        return redirect('no_perm', client_name=client_name, location_name=location_name)
 
     if request.method == 'POST':
         form = CreateSubrequestForm(request.POST)
@@ -172,7 +300,9 @@ def create_subrequest(request):
             user_id = request.user.id
 
             # Creation of new shifts tuple / instance
-            new_subrequest = SubRequests(
+            new_subrequest = SubRequest(
+                client=client,
+                location=location,
                 user_id=user_id, 
                 start_time=start_time,
                 end_time=end_time,
@@ -185,29 +315,62 @@ def create_subrequest(request):
             # saving instance to database
             new_subrequest.save()
 
-            return redirect('success')
-        else:
-            print("create_subrequest_form invalid")
+            # email
+
+            send_mail(
+                f'New Subrequest',
+                f'New subrequest at {location.name} on {date}',
+                EMAIL_HOST_USER,
+                ['xixomet280@mailrnl.com'],
+                fail_silently=True,
+            )
+
+            return redirect('success', client_name=client_name, location_name=location_name)
+        
 
     else:
         form = CreateSubrequestForm()
         
-    return render(request, 'cal/create_subrequest.html', {'form': form})
+    return render(request, 'cal/create_subrequest.html', {'form': form, 'client_name': client_name, 'location_name': location_name})
 
 
-def view_subrequest(request, sub_id=None):
+def view_subrequest(request, client_name=None, location_name=None, sub_id=None):
     # TODO: take action on request
 
+    if client_name is None or location_name is None:
+        return HttpResponse(status=500)
+
     if not request.user.is_authenticated or sub_id is None:
-        return redirect('no_auth')
+        return redirect('no_auth', client_name=client_name, location_name=location_name)
 
     try:
-        subrequest = SubRequests.objects.get(pk=sub_id)
-    except SubRequests.DoesNotExist:
-        return redirect('no_exists')
+        client = Client.objects.get(name__iexact=str(client_name))
+        location = Location.objects.get(name__iexact=str(location_name))
+    except ObjectDoesNotExist:
+        return redirect('no_exists', client_name=client_name, location_name=location_name)
+    except MultipleObjectsReturned:
+        return HttpResponse(status=500)
+    
+    if not location in client.locations.all():
+        return render(request, 'mysite/no_location_exists.html', {'client_name': str(client_name)})
+
+    try:
+        subrequest = SubRequest.objects.get(pk=sub_id)
+    except SubRequest.DoesNotExist:
+        return redirect('no_exists', client_name=client_name, location_name=location_name)
     except:
-        print('unknown exception raised')
-        return redirect('no_perm')    
+        return HttpResponse(status=500)
+
+    user = User.objects.get(id=request.user.id)
+    
+    if location not in client.locations.all():
+        return redirect('no_exists', client_name=client_name, location_name=location_name)
+    
+    if user not in client.users.all() or user not in location.users.all():
+        return redirect('no_perm', client_name=client_name, location_name=location_name)
+
+    if subrequest.client.id != client.id or subrequest.location.id != location.id:   #check if this subrequest / shift is part of this location
+        return redirect('no_perm', client_name=client_name, location_name=location_name)
 
     name = subrequest.name
     date = subrequest.date
@@ -223,6 +386,7 @@ def view_subrequest(request, sub_id=None):
 
     # Dictionary containing visible subrequest information
     info = {
+        'Location: ': location.name,
         'Approved: ': approved,
         'Subrequest Name: ': name,
         'Date: ': date,
@@ -244,41 +408,65 @@ def view_subrequest(request, sub_id=None):
     actions = {}
 
     if request_owner.id == request.user.id or request.user.is_staff:
-        actions['Delete'] = f'/calendar/declare_sub/{sub_id}'
+        actions['Delete'] = f'/{client.name}/{location.name}/calendar/delete_subrequest/{sub_id}'
 
     if request_owner.id != request.user.id and not subrequest.covered_by:
-        actions['Sub for this person'] = f'/calendar/declare_sub/{sub_id}'
+        actions['Sub for this person'] = f'/{client.name}/{location.name}/calendar/toggle_declare_sub/{sub_id}'
 
     if subrequest.covered_by is not None:
         if request.user.is_staff or request_owner.id == request.user.id or subrequest.covered_by.id == request.user.id:
-            actions['Revoke sub decision'] = f'/calendar/revoke_sub/{sub_id}'
+            actions['Revoke sub decision'] = f'/{client.name}/{location.name}/calendar/toggle_declare_sub/{sub_id}'
 
     if request.user.is_staff:
-        actions['Approve'] = f'/calendar/approve_subrequest/{sub_id}'
+        if not subrequest.approved:
+            actions['Approve'] = f'/{client.name}/{location.name}/calendar/toggle_approve_subrequest/{sub_id}'
+        else:
+            actions['Unapprove'] = f'/{client.name}/{location.name}/calendar/toggle_approve_subrequest/{sub_id}'
     
-    return render(request, 'cal/view_subrequest.html', {'info': info, 'actions': actions})
+    return render(request, 'cal/view_subrequest.html', {'info': info, 'actions': actions, 'client_name': client_name, 'location_name': location_name})
 
 
 
-def view_shift(request, shift_id=None):
-
-    # Convert to subrequest
-    # Look at shiftgroup(s) >= 0 that this shift is part of
-    # Delete shift
+def view_shift(request, client_name=None, location_name=None, shift_id=None):
+    
+    if client_name is None or location_name is None:
+        return HttpResponse(status=500)
 
     if not request.user.is_authenticated or shift_id is None:
-        return redirect('no_auth')
+        return redirect('no_auth', client_name=client_name, location_name=location_name)
 
     try:
-        shift = Shifts.objects.get(pk=shift_id)
-    except Shifts.DoesNotExist:
-        return redirect('no_exists')
+        client = Client.objects.get(name__iexact=str(client_name))
+        location = Location.objects.get(name__iexact=str(location_name))
+    except ObjectDoesNotExist:
+        return redirect('no_exists', client_name=client_name, location_name=location_name)
+    except MultipleObjectsReturned:
+        return HttpResponse(status=500)
+
+    if not location in client.locations.all():
+        return render(request, 'mysite/no_location_exists.html', {'client_name': str(client_name)})
+
+    try:
+        shift = Shift.objects.get(pk=shift_id)
+    except Shift.DoesNotExist:
+        return redirect('no_exists', client_name=client_name, location_name=location_name)
     except:
-        print('unknown exception raised')
-        return redirect('no_perm')
-        
+        return HttpResponse(status=500)
+
+    user = User.objects.get(id=request.user.id)
+    
+    if location not in client.locations.all():
+        return redirect('no_exists', client_name=client_name, location_name=location_name)
+    
+    if user not in client.users.all() or user not in location.users.all():
+        return redirect('no_perm', client_name=client_name, location_name=location_name)
+
+    if shift.client.id != client.id or shift.location.id != location.id:   #check if this subrequest / shift is part of this location
+        return redirect('no_perm', client_name=client_name, location_name=location_name)
+
     if shift.user_id != request.user.id and not request.user.is_staff:
-        return redirect('no_perm')    
+        return redirect('no_perm', client_name=client_name, location_name=location_name)
+
 
     name = shift.name
     date = shift.date
@@ -286,6 +474,7 @@ def view_shift(request, shift_id=None):
     end_time = shift.end_time
 
     info = {
+        'Location: ': location.name,
         'Shift Name: ': name,
         'Date: ': date,
         'Start Time: ': start_time,
@@ -296,127 +485,232 @@ def view_shift(request, shift_id=None):
     
     if request.user.is_staff:
         info['Owner: '] = shift.user.username
-        actions['Delete'] = f'/calendar/delete_shift/{shift_id}'
+        actions['Delete'] = f'/{client.name}/{location.name}/calendar/delete_shift/{shift_id}'
 
-    return render(request, 'cal/view_shift.html', {'info': info, 'actions': actions})
+    return render(request, 'cal/view_shift.html', {'info': info, 'actions': actions, 'client_name': client_name, 'location_name': location_name})
     
 
-def delete_shift(request, shift_id=None):
+def delete_shift(request, client_name=None, location_name=None, shift_id=None):
+
+    if client_name is None or location_name is None:
+        return HttpResponse(status=500)
+
     if not request.user.is_authenticated or shift_id is None:
-        return redirect('no_auth')
+        return redirect('no_auth', client_name=client_name, location_name=location_name)
+    
+    try:
+        client = Client.objects.get(name__iexact=str(client_name))
+        location = Location.objects.get(name__iexact=str(location_name))
+    except ObjectDoesNotExist:
+        return redirect('no_exists', client_name=client_name, location_name=location_name)
+    except MultipleObjectsReturned:
+        return HttpResponse(status=500)
+
+    if not location in client.locations.all():
+        return render(request, 'mysite/no_location_exists.html', {'client_name': str(client_name)})
 
     try:
-        shift = Shifts.objects.get(pk=shift_id)
-    except Shifts.DoesNotExist:
-        return redirect('no_exists')
+        shift = Shift.objects.get(pk=shift_id)
+    except Shift.DoesNotExist:
+        return redirect('no_exists', client_name=client_name, location_name=location_name)
     except:
-        print('unknown exception raised')
-        return redirect('no_perm')
+        return redirect('no_perm', client_name=client_name, location_name=location_name)
+
+
+    user = User.objects.get(id=request.user.id)
+    
+    if location not in client.locations.all():
+        return redirect('no_exists', client_name=client_name, location_name=location_name)
+    
+    if user not in client.users.all() or user not in location.users.all():
+        return redirect('no_perm', client_name=client_name, location_name=location_name)
         
     if not request.user.is_staff:
-        return redirect('no_perm')    
+        return redirect('no_perm', client_name=client_name, location_name=location_name)
+
+    if shift.client.id != client.id or shift.location.id != location.id:   #check if this subrequest / shift is part of this location
+        return redirect('no_perm', client_name=client_name, location_name=location_name)  
 
     if request.method == 'POST':
         shift.delete()
-        return redirect('success')
+        return redirect('success', client_name=client_name, location_name=location_name)
     
-    return render(request, 'cal/base_delete_view.html', {'object': shift})
+    return render(request, 'cal/base_delete_view.html', {'object': shift, 'client_name': client_name, 'location_name': location_name})
 
 
-def delete_subrequest(request, req_id=None):
+def delete_subrequest(request, client_name=None, location_name=None, req_id=None):
+
+    if client_name is None or location_name is None:
+        return HttpResponse(status=500)
+
     if not request.user.is_authenticated or req_id is None:
-        return redirect('no_auth')
+        return redirect('no_auth', client_name=client_name, location_name=location_name)
 
     try:
-        req = SubRequests.objects.get(pk=req_id)
-    except SubRequests.DoesNotExist:
-        return redirect('no_exists')
+        client = Client.objects.get(name__iexact=str(client_name))
+        location = Location.objects.get(name__iexact=str(location_name))
+    except ObjectDoesNotExist:
+        return redirect('no_exists', client_name=client_name, location_name=location_name)
+    except MultipleObjectsReturned:
+        return HttpResponse(status=500)
+
+    if not location in client.locations.all():
+        return render(request, 'mysite/no_location_exists.html', {'client_name': str(client_name)})
+
+    try:
+        req = SubRequest.objects.get(pk=req_id)
+    except SubRequest.DoesNotExist:
+        return redirect('no_exists', client_name=client_name, location_name=location_name)
     except:
-        print('unknown exception raised')
-        return redirect('no_perm')
+        return redirect('no_perm', client_name=client_name, location_name=location_name)
+
+    user = User.objects.get(id=request.user.id)
+    
+    if location not in client.locations.all():
+        return redirect('no_exists', client_name=client_name, location_name=location_name)
+    
+    if user not in client.users.all() or user not in location.users.all():
+        return redirect('no_perm', client_name=client_name, location_name=location_name)
         
     if req.user_id != request.user.id and not request.user.is_staff:
-        return redirect('no_perm')    
+        return redirect('no_perm', client_name=client_name, location_name=location_name)
+        
+    if req.client.id != client.id or req.location.id != location.id:   #check if this subrequest / shift is part of this location
+        return redirect('no_perm', client_name=client_name, location_name=location_name)         
 
     if request.method == 'POST':
         req.delete()
-        return redirect('success')
+        return redirect('success', client_name=client_name, location_name=location_name)
     
-    return render(request, 'cal/base_delete_view.html', {'object': req})
+    return render(request, 'cal/base_delete_view.html', {'object': req, 'client_name': client_name, 'location_name': location_name})
             
 
-def declare_sub(request, sub_id=None):
+def toggle_declare_sub(request, client_name=None, location_name=None, sub_id=None):
+
+    if client_name is None or location_name is None:
+        return HttpResponse(status=500)
+        
     if not request.user.is_authenticated or sub_id is None:
-        return redirect('no_auth')
+        return redirect('no_auth', client_name=client_name, location_name=location_name)
 
     try:
-        req = SubRequests.objects.get(pk=sub_id)
-    except SubRequests.DoesNotExist:
-        return redirect('no_exists')
-    except:
-        print('unknown exception raised')
-        return redirect('no_perm')  
-
-    if request.method == 'POST':
-        req.covered_by = request.user
-        req.approved = False
-        req.save()
-        return redirect('success')
-    
-    return render(request, 'cal/declare_sub.html', {})
-
-
-def revoke_sub(request, sub_id=None):
-    if not request.user.is_authenticated or sub_id is None:
-        return redirect('no_auth')
+        client = Client.objects.get(name__iexact=str(client_name))
+        location = Location.objects.get(name__iexact=str(location_name))
+    except ObjectDoesNotExist:
+        return redirect('no_exists', client_name=client_name, location_name=location_name)
+    except MultipleObjectsReturned:
+        return HttpResponse(status=500)
 
     try:
-        req = SubRequests.objects.get(pk=sub_id)
-    except SubRequests.DoesNotExist:
-        return redirect('no_exists')
+        req = SubRequest.objects.get(pk=sub_id)
+    except SubRequest.DoesNotExist:
+        return redirect('no_exists', client_name=client_name, location_name=location_name)
     except:
-        print('unknown exception raised')
-        return redirect('no_perm')
+        return redirect('no_perm', client_name=client_name, location_name=location_name)  
 
-    if req.covered_by is None:
-        return redirect('no_exists')
+    user = User.objects.get(id=request.user.id)
+    
+    if location not in client.locations.all():
+        return redirect('no_exists', client_name=client_name, location_name=location_name)
+    
+    if user not in client.users.all() or user not in location.users.all():
+        return redirect('no_perm', client_name=client_name, location_name=location_name)
 
-    if not request.user.is_staff and req.user_id != request.user.id and req.covered_by.id != request.user.id:
-        return redirect('no_perm')
+    if req.client.id != client.id or req.location.id != location.id:   #check if this subrequest / shift is part of this location
+        return redirect('no_perm', client_name=client_name, location_name=location_name)
 
     if request.method == 'POST':
-        req.covered_by = None
+
+        if not req.covered_by:
+            req.covered_by = request.user
+        else:
+            req.covered_by = None
+    
         req.approved = False
         req.save()
-        return redirect('success')
+        return redirect('success', client_name=client_name, location_name=location_name)
     
-    return render(request, 'cal/revoke_sub.html', {})
+    return render(request, 'cal/toggle_declare_sub.html', {'client_name': client_name, 'location_name': location_name})
 
 
-def approve_subrequest(request, sub_id=None):
+def toggle_approve_subrequest(request, client_name=None, location_name=None, sub_id=None):
+
+    if client_name is None or location_name is None:
+        return HttpResponse(status=500)
+
     if not request.user.is_authenticated or sub_id is None:
-        return redirect('no_auth')
+        return redirect('no_auth', client_name=client_name, location_name=location_name)
 
     if not request.user.is_staff:
-        return redirect('no_perm')
+        return redirect('no_perm', client_name=client_name, location_name=location_name)
 
     try:
-        req = SubRequests.objects.get(pk=sub_id)
-    except SubRequests.DoesNotExist:
-        return redirect('no_exists')
+        client = Client.objects.get(name__iexact=str(client_name))
+        location = Location.objects.get(name__iexact=str(location_name))
+    except ObjectDoesNotExist:
+        return redirect('no_exists', client_name=client_name, location_name=location_name)
+    except MultipleObjectsReturned:
+        return HttpResponse(status=500)
+
+    if not location in client.locations.all():
+        return render(request, 'mysite/no_location_exists.html', {'client_name': str(client_name)})
+
+    try:
+        req = SubRequest.objects.get(pk=sub_id)
+    except SubRequest.DoesNotExist:
+        return redirect('no_exists', client_name=client_name, location_name=location_name)
     except:
-        print('unknown exception raised')
-        return redirect('no_perm')
+        return redirect('no_perm', client_name=client_name, location_name=location_name)
+
+    user = User.objects.get(id=request.user.id)
+    
+    if location not in client.locations.all():
+        return redirect('no_exists', client_name=client_name, location_name=location_name)
+    
+    if user not in client.users.all() or user not in location.users.all():
+        return redirect('no_perm', client_name=client_name, location_name=location_name)
+
+    if req.client.id != client.id or req.location.id != location.id:   #check if this subrequest / shift is part of this location
+        return redirect('no_perm', client_name=client_name, location_name=location_name)
 
     if request.method == 'POST':
-        req.approved = True
+        req.approved = not req.approved
         req.save()
-        return redirect('success')
+        return redirect('success', client_name=client_name, location_name=location_name)
     
-    return render(request, 'cal/approve_subrequest.html', {})
+    return render(request, 'cal/toggle_approve_subrequest.html', {'client_name': client_name, 'location_name': location_name})
 
 
-def calculate_hours(request):
+def calculate_hours(request, client_name=None, location_name=None):
+
+    if client_name is None or location_name is None:
+        return HttpResponse(status=500)
+
+    if not request.user.is_authenticated:
+        return redirect('no_auth', client_name=client_name, location_name=location_name)
+
+    if not request.user.is_staff:
+        return redirect('no_perm', client_name=client_name, location_name=location_name)
+
+    try:
+        client = Client.objects.get(name__iexact=str(client_name))
+        location = Location.objects.get(name__iexact=str(location_name))
+    except ObjectDoesNotExist:
+        return redirect('no_exists', client_name=client_name, location_name=location_name)
+    except MultipleObjectsReturned:
+        return HttpResponse(status=500)
+
+    if not location in client.locations.all():
+        return render(request, 'mysite/no_location_exists.html', {'client_name': str(client_name)})
+
+    user = User.objects.get(id=request.user.id)
+    
+    if location not in client.locations.all():
+        return redirect('no_exists', client_name=client_name, location_name=location_name)
+    
+    if user not in client.users.all() or user not in location.users.all():
+        return redirect('no_perm', client_name=client_name, location_name=location_name)
+
 
     if request.method == 'POST':
         form = CalculateHoursForm(request.POST)
@@ -426,9 +720,9 @@ def calculate_hours(request):
             
             start_date = field_dict.get('start_date')
             end_date = field_dict.get('end_date')
-            user = field_dict.get('user')
-
-            shifts = Shifts.objects.filter(user_id=user.id, date__gte=start_date, date__lte=end_date)
+            
+            all_shifts_in_time_period = Shift.objects.filter(date__gte=start_date, date__lte=end_date, client=client)
+            all_subdays_in_time_period = SubRequest.objects.exclude(date__gte=start_date, date__lte=end_date, client=client, covered_by__exact=None)
 
             def difference_in_seconds(start_time, end_time):
                 end = datetime.combine(date.today(), end_time)
@@ -436,41 +730,37 @@ def calculate_hours(request):
                 diff = end - start
                 return diff.total_seconds()
 
-            total_shift_seconds = 0
+            users = client.users.all()
+
+            # Create the HttpResponse object with the appropriate CSV header.
+            response = HttpResponse(content_type='text/csv')
+            response['Content-Disposition'] = f'attachment; filename="{client_name}_hours_{start_date}_to_{end_date}.csv"'
             
-            for shift in shifts:
-                total_shift_seconds += difference_in_seconds(shift.start_time, shift.end_time)
-            
-            shift_hours = int(total_shift_seconds // 3600)
-            shift_leftover_minutes = int((total_shift_seconds % 3600) // 60)
+            writer = csv.writer(response)
+            writer.writerow(['User', 'Shift Hours', 'Subday Hours', 'Total Hours'])
 
-            subdays = SubRequests.objects.filter(date__gte=start_date, date__lte=end_date, covered_by_id__exact=user.id)
-            
-            total_sub_seconds = 0
+            for user in users:
+                total_shift_seconds = 0
+                total_sub_seconds = 0
+                shifts = all_shifts_in_time_period.filter(user_id=user.id)
+                subdays = all_subdays_in_time_period.filter(covered_by_id__exact=user.id)
 
-            for sub in subdays:
-                total_sub_seconds += difference_in_seconds(sub.start_time, sub.end_time)
+                for shift in shifts:
+                    total_shift_seconds += difference_in_seconds(shift.start_time, shift.end_time)
 
-            subday_hours = int(total_sub_seconds // 3600)
-            subday_leftover_minutes = int((total_sub_seconds % 3600) // 60)
+                for sub in subdays:
+                    total_sub_seconds += difference_in_seconds(sub.start_time, sub.end_time)
+                
+                total_seconds = total_shift_seconds + total_sub_seconds
+                
+                writer.writerow([str(user.username), str(timedelta(seconds=total_shift_seconds)), str(timedelta(seconds=total_sub_seconds)), str(timedelta(seconds=total_seconds))])
 
-            total_seconds = total_shift_seconds + total_sub_seconds
-            total_hours = int(total_seconds // 3600)
-            total_leftover_mimutes = int((total_seconds % 3600) // 60)
-
-
-            info = {
-                'Employee Shift Hours: ': str(shift_hours) + ' hours and ' + str(shift_leftover_minutes) + ' minutes.',
-                'Employee Subday Hours: ': str(subday_hours) + ' hours and ' + str(subday_leftover_minutes) + ' minutes.',
-                'Employee Total Hours: ': str(total_hours) + ' hours and ' + str(total_leftover_mimutes) + ' minutes.',
-            }
-            
-            return render(request, 'cal/calculate_results.html', {'info': info})
+            return response
 
     else:
         form = CalculateHoursForm()
 
-    return render(request, 'cal/calculate_hours.html', {'form': form})
+    return render(request, 'cal/calculate_hours.html', {'form': form, 'client_name': client_name, 'location_name': location_name})
 
 
 
