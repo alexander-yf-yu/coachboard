@@ -13,9 +13,6 @@ from mysite.settings import EMAIL_HOST_USER
 import csv
 from datetime import timedelta
 
-# def user_client_location_auth(request, client_name, location_name):
-
-
 # Views here.
 def no_auth(request, client_name=None, location_name=None):
     return render(request, 'cal/no_auth.html', {'client_name': client_name, 'location_name': location_name})
