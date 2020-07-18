@@ -2,6 +2,8 @@
 
 ## Workforce and payroll management Webapp for Sports Teams/Clubs
 
+Check it out at https://coachboard.ca/.
+
 This django-based webapp helps sports clubs manage their staff and reduce communications. 
 
 > In a typical sports club, there are coaches, atheletes, and managing staff. Managing the day to day operations of the club poses a challenge. 
@@ -17,7 +19,7 @@ ___
 
 ## Demo Video
 
-[![DEMO](http://img.youtube.com/vi/S_uITy0Y_aQ/0.jpg)](https://www.youtube.com/watch?v=S_uITy0Y_aQ "Demo")
+[![DEMO](http://img.youtube.com/vi/yi1mMwUjaVw/0.jpg)](https://www.youtube.com/watch?v=yi1mMwUjaVw&list=PLF5AdSM391nUBXsy6UQN0Da0xZ_YrBOpJ)
 
 ___
 ## Installation and Setup
